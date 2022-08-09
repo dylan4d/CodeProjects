@@ -1,0 +1,148 @@
+db.createCollection("students")
+db.createCollection("sections")
+db.createCollection("grade_reports")
+db.createCollection("courses")
+db.createCollection("prerequisites")
+
+db.students.insertOne({name: "Smith", student_number: 17, class: 1, major: "CS"})
+db.students.insertOne({name: "Brown", student_number: 8, class: 2, major: "CS"})
+
+db.grade_reports.insertMany([
+{student_number: 17, section_identifier: 112, grade: "B"},
+{student_number: 17, section_identifier: 119, grade: "C"},
+{student_number: 8, section_identifier: 85, grade: "A"},
+{student_number: 8, section_identifier: 92, grade: "A"},
+{student_number: 8, section_identifier: 102, grade: "B"},
+{student_number: 8, section_identifier: 135, grade: "A"}
+])
+
+db.prerequisites.insertMany([
+{course_number: "CS3380", prerequisite_number: "CS3320"},
+{course_number: "CS3380", prerequisite_number: "MATH2410"},
+{course_number: "CS3320", prerequisite_number: "CS1310"}
+])
+
+db.courses.insertMany([
+{course_name: "Intro to Computer Science", course_number: "CS1310", credit_hours: 4, department: "CS"},
+{course_name: "Data Structures", course_number: "CS3320", credit_hours: 4, department: "CS"},
+{course_name: "Discrete Mathematics", course_number: "MATH2410", credit_hours: 3, department: "MATH"},
+{course_name: "Database", course_number: "CS3380", credit_hours: 3, department: "CS"}
+])
+
+db.sections.insertMany([
+{section_identifier: 85, course_number: "MATH2410", semester: "Fall", year: 07, instructor: "King"},
+{section_identifier: 92, course_number: "CS1310", semester: "Fall", year: 07, instructor: "Anderson"},
+{section_identifier: 102, course_number: "CS3320", semester: "Spring", year: 08, instructor: "Knuth"},
+{section_identifier: 112, course_number: "MATH2410", semester: "Fall", year: 08, instructor: "Chang"},
+{section_identifier: 119, course_number: "CS1310", semester: "Fall", year: 08, instructor: "Anderson"},
+{section_identifier: 135, course_number: "CS3380", semester: "Fall", year: 08, instructor: "Stone"}
+])
+
+db.students.aggregate([
+    {"$match": {"name": "Smith"}},
+    
+    {"$lookup": {
+        "from": "grade_reports",
+        "localField": "student_number",
+        "foreignField": "student_number",
+        "as": "gradeReports"
+    }},
+
+    {"$lookup": {
+        "from": "sections",
+        "localField": "gradeReports.section_identifier",
+        "foreignField": "section_identifier",
+        "as": "sectionIdentifiers"
+    }},
+
+    {"$lookup": {
+        "from": "courses",
+        "localField": "sectionIdentifiers.course_number",
+        "foreignField": "course_number",
+        "as": "courseNumbers"
+    }},
+
+    {"$project": {
+        "name": true,
+        "student_number": true,
+        "gradeReports.grade": true,
+        "sectionIdentifiers.course_number": true,
+        "courseNumbers.course_name": true
+    }}
+
+])
+
+db.courses.aggregate([
+    {"$match": {"course_name": "Database"}},
+    
+    {"$lookup": {
+        "from": "sections",
+        "localField": "course_number",
+        "foreignField": "course_number",
+        "as": "sectionIdentifiers"
+    }},
+
+    {"$lookup": {
+        "from": "grade_reports",
+        "localField": "sectionIdentifiers.section_identifier",
+        "foreignField": "section_identifier",
+        "as": "gradeReports"
+    }},
+
+    {"$lookup": {
+        "from": "students",
+        "localField": "gradeReports.student_number",
+        "foreignField": "student_number",
+        "as": "studentNumbers"
+    }},
+
+    {"$project": {
+        "studentNumbers.name": true,
+        "gradeReports.grade": true
+    }}
+
+])
+
+var courseCode = db.courses.findOne({"course_name": "Database"}).course_number
+db.prerequisites.aggregate([
+
+    {"$match": {"course_number": courseCode}},
+
+    {"$lookup": {
+        "from": "courses",
+        "localField": "prerequisite_number",
+        "foreignField": "course_number",
+        "as": "courseNumbers"
+    }},
+
+    {"$project": {
+        "courseNumbers.course_name": true
+    }}
+])
+
+
+
+
+
+
+
+
+
+
+//Provide a query to retrieve details of all books.
+db.books.find()
+//book with quantities greater than or equal to 10 and less than or equal to 50.
+db.books.find({
+	$or: [{$gt: 10},{$lt: 50}]
+})
+//update certain book title to certain value of of qty
+db.books.update({title:"ISS:ABE"}, {$set: {qty: 50}})
+
+//count number of book with quantity greater than x less than x
+db.book.aggregate([
+	{$match: 
+		{$or: [{qty: {$gte: 50}},{qty: {$lte: 100}}]}
+	},
+
+	{$group: {_id: "null", totalCount: {$count: "$name"}}}
+])
